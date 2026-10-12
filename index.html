@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11161b">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Acompanhamento pessoal de peso, circunferência, alimentação e treinos.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Evolução">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Evolução</title>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="app" id="app">
+      <section id="screen-home" class="screen active" aria-label="Início">
+        <header class="topbar">
+          <span aria-hidden="true" class="topbar-spacer"></span>
+          <button type="button" class="icon-button" id="open-history" aria-label="Abrir histórico" title="Histórico">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m6.5 15 4.5-5 4 3 5-8"/></svg>
+          </button>
+        </header>
+
+        <div class="home-content">
+          <div class="dial-region">
+            <div id="weight-dial" class="weight-dial" role="slider" tabindex="0" aria-label="Peso em quilogramas. Gire ou use as setas para ajustar." aria-valuemin="35" aria-valuemax="250" aria-valuenow="90" aria-valuetext="90,0 quilogramas">
+              <div class="dial-ring" aria-hidden="true"></div>
+              <div class="dial-center">
+                <button type="button" id="weight-number" class="weight-number" aria-label="Digitar peso" title="Toque para digitar">90,0</button>
+                <div class="dial-marks" aria-hidden="true"><i></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="waist-region">
+            <button type="button" id="waist-number" class="waist-number" aria-label="Digitar circunferência abdominal" title="Toque para digitar">98,0</button>
+            <input id="waist-range" type="range" min="50" max="160" step="0.5" value="98" aria-label="Circunferência abdominal em centímetros" style="--fill:43.636%">
+          </div>
+
+          <div class="home-actions" role="group" aria-label="Novo registro">
+            <button type="button" class="action-button good" data-new-log="good" aria-label="Alimentação dentro do planejado" title="Alimentação dentro do planejado">
+              <svg viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></svg>
+            </button>
+            <button type="button" class="action-button bad" data-new-log="bad" aria-label="Alimentação fora do planejado" title="Alimentação fora do planejado">
+              <svg viewBox="0 0 24 24"><path d="M6 6 18 18M18 6 6 18"/></svg>
+            </button>
+            <button type="button" class="action-button train" data-new-log="train" aria-label="Registrar treino" title="Registrar treino">
+              <svg viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M3 8l5-5M16 21l5-5M2 11l9-9M13 22l9-9"/></svg>
+            </button>
+          </div>
+
+          <button type="button" class="confirm-button" id="save-measure" aria-label="Confirmar medidas" title="Confirmar medidas">
+            <svg viewBox="0 0 26 24"><path d="m2 12 5 5L17 7"/><path d="m10 12 5 5L24 7"/></svg>
+          </button>
+          <div id="home-feedback" class="home-feedback" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="screen-history" class="screen history-screen" aria-label="Histórico" hidden>
+        <header class="topbar history-topbar">
+          <button type="button" class="icon-button" data-back="home" aria-label="Voltar ao início">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1>Histórico</h1>
+          <button type="button" class="icon-button" id="open-settings" aria-label="Backup e configurações" title="Backup e configurações">
+            <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="m19.4 15 .1.1 1.5 1.2-1.6 2.8-1.9-.6a8.6 8.6 0 0 1-2.1 1.2l-.4 2h-3.2l-.4-2a8.6 8.6 0 0 1-2.1-1.2l-1.9.6-1.6-2.8 1.5-1.2a8.8 8.8 0 0 1 0-2.4L5.8 11l1.6-2.8 1.9.6a8.6 8.6 0 0 1 2.1-1.2l.4-2H15l.4 2a8.6 8.6 0 0 1 2.1 1.2l1.9-.6L21 11l-1.5 1.2a8.8 8.8 0 0 1 0 2.4Z" transform="translate(-.4 -1.8) scale(.96)"/></svg>
+          </button>
+        </header>
+
+        <div class="history-inner">
+          <div class="segmented" role="group" aria-label="Medida exibida">
+            <button type="button" class="segment active" data-metric="weight" aria-pressed="true">Peso</button>
+            <button type="button" class="segment" data-metric="waist" aria-pressed="false">Circunferência</button>
+          </div>
+
+          <div class="stats">
+            <div><div class="stats-value"><span id="stats-current">—</span><span class="unit" id="stats-unit">kg</span></div><div class="stats-caption">Último registro</div></div>
+            <div class="stats-right"><div class="stats-change neutral" id="stats-change">—</div><div class="stats-caption" id="stats-period-label">Últimos 30 dias</div></div>
+          </div>
+
+          <div class="periods" role="group" aria-label="Período do gráfico">
+            <button type="button" class="period active" data-period="30" aria-pressed="true">30 dias</button>
+            <button type="button" class="period" data-period="90" aria-pressed="false">90 dias</button>
+            <button type="button" class="period" data-period="all" aria-pressed="false">Tudo</button>
+          </div>
+          <div id="history-chart" class="chart" role="img" aria-label="Gráfico da evolução das medidas"></div>
+          <div id="chart-point-info" class="point-info" aria-live="polite"></div>
+
+          <div class="section-divider"></div>
+          <div class="list-header"><h2>Registros</h2><span id="record-count" aria-live="polite"></span></div>
+          <div class="filters" role="group" aria-label="Filtrar registros">
+            <button type="button" class="filter active" data-filter="all" aria-pressed="true">Todos</button>
+            <button type="button" class="filter" data-filter="measure" aria-pressed="false">Medidas</button>
+            <button type="button" class="filter" data-filter="activity" aria-pressed="false">Alimentação e treino</button>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </section>
+
+      <section id="screen-log" class="screen editor-screen" aria-label="Registro" hidden>
+        <header class="topbar">
+          <button type="button" class="icon-button" data-cancel-editor aria-label="Voltar sem salvar"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <h1 class="small-title" id="log-heading">Registro</h1>
+          <button type="button" id="delete-log" class="icon-button delete-action" aria-label="Excluir registro" title="Excluir registro" hidden><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/></svg></button>
+          <span id="log-top-spacer" class="topbar-spacer" aria-hidden="true"></span>
+        </header>
+        <form id="log-form" class="editor-form">
+          <div id="log-symbol" class="log-symbol" aria-hidden="true"></div>
+          <div id="food-switch" class="food-switch" role="group" aria-label="Situação da alimentação" hidden>
+            <button type="button" class="food-choice good" data-food-status="good" aria-label="Dentro do planejado"><svg viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+            <button type="button" class="food-choice bad" data-food-status="bad" aria-label="Fora do planejado"><svg viewBox="0 0 24 24"><path d="M6 6 18 18M18 6 6 18"/></svg></button>
+          </div>
+          <label class="field-label" for="log-date">Data</label>
+          <input type="date" id="log-date" class="field date-field" required>
+          <label class="field-label" for="log-notes">Observação</label>
+          <textarea id="log-notes" class="note-field" rows="5" maxlength="2000" placeholder="Opcional"></textarea>
+          <p class="form-error" id="log-error" role="alert"></p>
+          <button type="submit" class="confirm-button editor-confirm" aria-label="Salvar registro" title="Salvar registro"><svg viewBox="0 0 26 24"><path d="m2 12 5 5L17 7"/><path d="m10 12 5 5L24 7"/></svg></button>
+        </form>
+      </section>
+
+      <section id="screen-measure" class="screen editor-screen" aria-label="Editar medidas" hidden>
+        <header class="topbar">
+          <button type="button" class="icon-button" data-cancel-editor aria-label="Voltar sem salvar"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <h1 class="small-title">Medidas</h1>
+          <button type="button" id="delete-measure" class="icon-button delete-action" aria-label="Excluir medidas" title="Excluir registro"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/></svg></button>
+        </header>
+        <form id="measure-form" class="editor-form measure-form">
+          <label class="field-label" for="measure-date">Data</label>
+          <input type="date" id="measure-date" class="field date-field" required>
+          <label class="field-label" for="measure-weight">Peso (kg)</label>
+          <input type="number" id="measure-weight" class="field measurement-field" min="35" max="250" step="0.1" inputmode="decimal" required>
+          <label class="field-label" for="measure-waist">Circunferência (cm)</label>
+          <input type="number" id="measure-waist" class="field measurement-field" min="50" max="160" step="0.1" inputmode="decimal" required>
+          <p class="form-error" id="measure-error" role="alert"></p>
+          <button type="submit" class="confirm-button editor-confirm" aria-label="Salvar medidas"><svg viewBox="0 0 26 24"><path d="m2 12 5 5L17 7"/><path d="m10 12 5 5L24 7"/></svg></button>
+        </form>
+      </section>
+
+      <section id="screen-settings" class="screen settings-screen" aria-label="Backup e configurações" hidden>
+        <header class="topbar">
+          <button type="button" class="icon-button" data-back="history" aria-label="Voltar ao histórico"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <h1 class="small-title">Dados e backup</h1>
+          <span class="topbar-spacer"></span>
+        </header>
+        <div class="settings-body">
+          <p class="settings-description">Seus registros ficam guardados neste aparelho e neste navegador. O GitHub hospeda apenas o aplicativo, não os seus dados.</p>
+          <button type="button" class="settings-row" id="export-backup"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></svg><span><strong>Exportar backup</strong><small>Baixar um arquivo JSON com todos os registros</small></span><span class="chevron">›</span></button>
+          <button type="button" class="settings-row" id="import-backup"><svg viewBox="0 0 24 24"><path d="M12 21V9m-4 4 4-4 4 4M4 7V3h16v4"/></svg><span><strong>Importar backup</strong><small>Substituir os registros pelos de um backup</small></span><span class="chevron">›</span></button>
+          <input type="file" id="backup-file" accept=".json,application/json" hidden>
+          <button type="button" class="settings-row danger-row" id="clear-data"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/></svg><span><strong>Apagar todos os dados</strong><small>Esta ação não pode ser desfeita</small></span><span class="chevron">›</span></button>
+          <p class="settings-footer">Faça backups periódicos. Limpar os dados do navegador, trocar de aparelho ou remover o aplicativo pode apagar os registros locais.</p>
+          <p class="form-error settings-status" id="settings-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
