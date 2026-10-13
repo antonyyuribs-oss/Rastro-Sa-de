@@ -8,6 +8,7 @@
   const MAX_WEIGHT = 250;
   const MIN_WAIST = 50;
   const MAX_WAIST = 160;
+  const WAIST_STEP = 0.5;
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const icons = {
@@ -129,7 +130,7 @@
     $('#weight-dial').setAttribute('aria-valuetext', `${fmt(weight)} quilogramas`);
   }
   function setWaist(value) {
-    waist = Math.min(MAX_WAIST, Math.max(MIN_WAIST, Math.round(Number(value) * 10) / 10));
+    waist = Math.min(MAX_WAIST, Math.max(MIN_WAIST, Math.round(Number(value) / WAIST_STEP) * WAIST_STEP));
     $('#waist-number').textContent = fmt(waist);
     $('#waist-range').value = String(waist);
     $('#waist-range').style.setProperty('--fill', `${100 * (waist - MIN_WAIST) / (MAX_WAIST - MIN_WAIST)}%`);
@@ -296,6 +297,7 @@
     $('#measure-date').max = localDay();
     $('#measure-weight').value = String(item.weight);
     $('#measure-waist').value = String(item.waist);
+    $('#measure-waist').step = String(WAIST_STEP);
     $('#measure-error').textContent = '';
     showScreen('measure');
   }
@@ -314,7 +316,7 @@
     if (records.some((r) => r.type === 'measure' && r.date === date && r.id !== old.id)) {
       $('#measure-error').textContent = 'Já existem medidas registradas nessa data.'; return;
     }
-    const item = { ...old, date, weight: Math.round(w * 10) / 10, waist: Math.round(c * 10) / 10, updatedAt: new Date().toISOString() };
+    const item = { ...old, date, weight: Math.round(w * 10) / 10, waist: Math.round(c / WAIST_STEP) * WAIST_STEP, updatedAt: new Date().toISOString() };
     if (persist(records.map((r) => r.id === old.id ? item : r))) {
       initialMeasurements();
       showScreen('history');
@@ -557,7 +559,7 @@
   $('#import-backup').addEventListener('click', () => $('#backup-file').click());
   $('#backup-file').addEventListener('change', importBackup);
   $('#clear-data').addEventListener('click', clearData);
-  $('#waist-range').step = '0.1';
+  $('#waist-range').step = String(WAIST_STEP);
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => {

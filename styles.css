@@ -29,11 +29,11 @@ h1,h2,p{margin:0}
 .dial-marks i{width:13px;height:3px;background:#bdcfd9;border-radius:4px}
 .waist-region{margin:0 clamp(8px,5vw,20px);display:flex;flex-direction:column;align-items:center}
 .waist-number{border:0;background:none;color:#ebf0f3;font-size:39px;font-weight:300;line-height:1.25;letter-spacing:-1.4px;font-variant-numeric:tabular-nums;padding:0 8px 11px}
-#waist-range{width:100%;height:24px;appearance:none;-webkit-appearance:none;background:none;margin:0;cursor:pointer;touch-action:pan-y}
-#waist-range::-webkit-slider-runnable-track{height:5px;background:linear-gradient(90deg,#b2cedc var(--fill),#3b4851 var(--fill));border-radius:9px}
-#waist-range::-moz-range-track{height:5px;background:linear-gradient(90deg,#b2cedc var(--fill),#3b4851 var(--fill));border-radius:9px}
-#waist-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#e4ecf0;border:4px solid #728e9f;box-shadow:0 2px 9px #0007;margin-top:-8.5px}
-#waist-range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#e4ecf0;border:4px solid #728e9f;box-shadow:0 2px 9px #0007}
+#waist-range{width:100%;height:36px;appearance:none;-webkit-appearance:none;background:none;margin:0;cursor:pointer;touch-action:manipulation;padding:8px 0}
+#waist-range::-webkit-slider-runnable-track{height:8px;background:linear-gradient(90deg,#b2cedc var(--fill),#3b4851 var(--fill));border-radius:999px}
+#waist-range::-moz-range-track{height:8px;background:linear-gradient(90deg,#b2cedc var(--fill),#3b4851 var(--fill));border-radius:999px}
+#waist-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:#e4ecf0;border:5px solid #728e9f;box-shadow:0 2px 9px #0007;margin-top:-11px}
+#waist-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#e4ecf0;border:5px solid #728e9f;box-shadow:0 2px 9px #0007}
 .home-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:clamp(45px,8vh,82px)}
 .action-button{height:68px;border-radius:16px;border:1px solid #35434c;background:#20292f;color:#b7c9d2;display:grid;place-items:center;transition:background .14s,transform .12s}
 .action-button svg{width:29px;height:29px;stroke-width:1.8}
