@@ -8,7 +8,9 @@
   const MAX_WEIGHT = 250;
   const MIN_WAIST = 50;
   const MAX_WAIST = 160;
+  const WAIST_WINDOW = 5;
   const WAIST_STEP = 0.5;
+  const SETTINGS_KEY = 'evolucao-pessoal-config-v1';
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const icons = {
@@ -20,6 +22,10 @@
   let records = loadRecords();
   let weight = 90;
   let waist = 98;
+  let waistWindowCenter = 98;
+  let weightChanged = false;
+  let waistChanged = false;
+  let goalWeight = loadGoal();
   let chartMetric = 'weight';
   let chartPeriod = '30';
   let listFilter = 'all';
@@ -59,7 +65,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const saved = JSON.parse(raw);
-      if (!saved || saved.app !== APP_NAME || saved.schemaVersion !== 1 || !Array.isArray(saved.records)) return [];
+      if (!saved || saved.app !== APP_NAME || ![1, 2].includes(saved.schemaVersion) || !Array.isArray(saved.records)) return [];
       return validateRecords(saved.records);
     } catch (err) {
       console.warn('Não foi possível ler os registros locais.', err);
@@ -80,11 +86,17 @@
       ids.add(id);
       if (!validDay(date) || !validTimestamp(createdAt) || !validTimestamp(updatedAt)) throw new Error('Data de registro inválida.');
       if (type === 'measure') {
-        if (!Number.isFinite(item.weight) || item.weight < MIN_WEIGHT || item.weight > MAX_WEIGHT ||
-            !Number.isFinite(item.waist) || item.waist < MIN_WAIST || item.waist > MAX_WAIST) throw new Error('Medidas inválidas.');
+        const hasWeight = Object.hasOwn(item, 'weight');
+        const hasWaist = Object.hasOwn(item, 'waist');
+        if ((!hasWeight && !hasWaist) ||
+          (hasWeight && (!Number.isFinite(item.weight) || item.weight < MIN_WEIGHT || item.weight > MAX_WEIGHT)) ||
+          (hasWaist && (!Number.isFinite(item.waist) || item.waist < MIN_WAIST || item.waist > MAX_WAIST))) {
+          throw new Error('Medidas inválidas.');
+        }
         if (uniqueDays.has(`measure:${date}`)) throw new Error('Medidas duplicadas na mesma data.');
         uniqueDays.add(`measure:${date}`);
-        return { id, type, date, weight: item.weight, waist: item.waist, createdAt, updatedAt };
+        return { id, type, date, ...(hasWeight ? { weight: item.weight } : {}),
+          ...(hasWaist ? { waist: item.waist } : {}), createdAt, updatedAt };
       }
       if (type === 'food' || type === 'train') {
         if (typeof item.note !== 'string' || item.note.length > 2000) throw new Error('Observação inválida.');
@@ -101,7 +113,7 @@
   }
   function persist(next) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ app: APP_NAME, schemaVersion: 1, records: next }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ app: APP_NAME, schemaVersion: 2, records: next }));
       records = next;
       return true;
     } catch (err) {
@@ -117,23 +129,43 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => node.classList.remove('visible'), 3300);
   }
-  function initialMeasurements() {
-    const latest = records.filter((r) => r.type === 'measure').sort((a, b) =>
-      b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))[0];
-    setWeight(latest ? latest.weight : 90);
-    setWaist(latest ? latest.waist : 98);
+  function loadGoal() {
+    try {
+      const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      const g = Number(settings.weightGoal);
+      return settings.weightGoal != null && Number.isFinite(g) && g >= MIN_WEIGHT && g <= MAX_WEIGHT ? g : null;
+    } catch (_) { return null; }
   }
-  function setWeight(value) {
+  function initialMeasurements() {
+    const sorted = records.filter((r) => r.type === 'measure').sort((a, b) =>
+      b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    const w = sorted.find((r) => Number.isFinite(r.weight));
+    const c = sorted.find((r) => Number.isFinite(r.waist));
+    setWeight(w ? w.weight : 90);
+    setWaist(c ? c.waist : 98, false, true);
+    weightChanged = false;
+    waistChanged = false;
+  }
+  function setWeight(value, edited = false) {
     weight = Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, Math.round(Number(value) * 10) / 10));
     $('#weight-number').textContent = fmt(weight);
     $('#weight-dial').setAttribute('aria-valuenow', String(weight));
     $('#weight-dial').setAttribute('aria-valuetext', `${fmt(weight)} quilogramas`);
+    if (edited) weightChanged = true;
   }
-  function setWaist(value) {
-    waist = Math.min(MAX_WAIST, Math.max(MIN_WAIST, Math.round(Number(value) / WAIST_STEP) * WAIST_STEP));
+  function setWaist(value, edited = false, recenter = false) {
+    // Exibe medições antigas exatamente como foram salvas; novos ajustes usam 0,5 cm.
+    waist = Math.min(MAX_WAIST, Math.max(MIN_WAIST, edited ? Math.round(Number(value) / WAIST_STEP) * WAIST_STEP : Number(value)));
     $('#waist-number').textContent = fmt(waist);
-    $('#waist-range').value = String(waist);
-    $('#waist-range').style.setProperty('--fill', `${100 * (waist - MIN_WAIST) / (MAX_WAIST - MIN_WAIST)}%`);
+    if (edited) waistChanged = true;
+    if (recenter) waistWindowCenter = Math.round(waist / WAIST_STEP) * WAIST_STEP;
+    const lo = Math.max(MIN_WAIST, waistWindowCenter - WAIST_WINDOW);
+    const hi = Math.min(MAX_WAIST, waistWindowCenter + WAIST_WINDOW);
+    const slider = $('#waist-range');
+    slider.min = String(lo);
+    slider.max = String(hi);
+    slider.value = String(waist);
+    slider.style.setProperty('--fill', `${100 * (waist - lo) / (hi - lo)}%`);
   }
   function inlineNumber(button, current, min, max, setter) {
     if (button.hidden) return;
@@ -192,7 +224,7 @@
       total += delta;
       const steps = Math.trunc(total / 6);
       if (steps) {
-        setWeight(weight + steps * 0.1);
+        setWeight(weight + steps * 0.1, true);
         total -= steps * 6;
       }
     });
@@ -201,17 +233,17 @@
     dial.addEventListener('keydown', (event) => {
       if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)) {
         event.preventDefault();
-        setWeight(weight + (['ArrowUp', 'ArrowRight'].includes(event.key) ? 0.1 : -0.1));
+        setWeight(weight + (['ArrowUp', 'ArrowRight'].includes(event.key) ? 0.1 : -0.1), true);
       }
     });
     dial.addEventListener('wheel', (event) => {
       if (document.activeElement !== dial) return;
       event.preventDefault();
-      setWeight(weight + (event.deltaY < 0 ? 0.1 : -0.1));
+      setWeight(weight + (event.deltaY < 0 ? 0.1 : -0.1), true);
     }, { passive: false });
-    $('#weight-number').addEventListener('click', () => inlineNumber($('#weight-number'), weight, MIN_WEIGHT, MAX_WEIGHT, setWeight));
-    $('#waist-number').addEventListener('click', () => inlineNumber($('#waist-number'), waist, MIN_WAIST, MAX_WAIST, setWaist));
-    $('#waist-range').addEventListener('input', (event) => setWaist(event.target.value));
+    $('#weight-number').addEventListener('click', () => inlineNumber($('#weight-number'), weight, MIN_WEIGHT, MAX_WEIGHT, (v) => setWeight(v, true)));
+    $('#waist-number').addEventListener('click', () => inlineNumber($('#waist-number'), waist, MIN_WAIST, MAX_WAIST, (v) => setWaist(v, true, true)));
+    $('#waist-range').addEventListener('input', (event) => setWaist(event.target.value, true));
   }
 
   function showScreen(name) {
@@ -224,19 +256,26 @@
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
   function saveHomeMeasure() {
+    const feedback = $('#home-feedback');
+    if (!weightChanged && !waistChanged) {
+      feedback.textContent = 'Toque na medida realizada, mesmo sem mudança, e confirme.';
+      return;
+    }
     const date = localDay();
     const now = new Date().toISOString();
     const old = records.find((r) => r.type === 'measure' && r.date === date);
     const item = old
-      ? { ...old, weight, waist, updatedAt: now }
-      : { id: newid(), type: 'measure', date, weight, waist, createdAt: now, updatedAt: now };
+      ? { ...old, ...(weightChanged ? { weight } : {}), ...(waistChanged ? { waist } : {}), updatedAt: now }
+      : { id: newid(), type: 'measure', date, ...(weightChanged ? { weight } : {}),
+          ...(waistChanged ? { waist } : {}), createdAt: now, updatedAt: now };
     if (persist(old ? records.map((r) => r.id === old.id ? item : r) : [...records, item])) {
-      const feedback = $('#home-feedback');
+      weightChanged = false;
+      waistChanged = false;
+      setWaist(waist, false, true);
       feedback.textContent = '✓';
       setTimeout(() => { if (feedback.textContent === '✓') feedback.textContent = ''; }, 1800);
     }
   }
-
   function openLog(statusOrTrain, id = null, origin = 'home') {
     const today = localDay();
     const old = id ? records.find((r) => r.id === id) :
@@ -295,9 +334,8 @@
     editorOrigin = 'history';
     $('#measure-date').value = item.date;
     $('#measure-date').max = localDay();
-    $('#measure-weight').value = String(item.weight);
-    $('#measure-waist').value = String(item.waist);
-    $('#measure-waist').step = String(WAIST_STEP);
+    $('#measure-weight').value = item.weight == null ? '' : String(item.weight);
+    $('#measure-waist').value = item.waist == null ? '' : String(item.waist);
     $('#measure-error').textContent = '';
     showScreen('measure');
   }
@@ -309,14 +347,18 @@
     const old = records.find((r) => r.id === editId && r.type === 'measure');
     if (!old) return;
     if (!validDay(date)) { $('#measure-error').textContent = 'Escolha uma data válida até hoje.'; return; }
-    if ($('#measure-weight').value === '' || !Number.isFinite(w) || w < MIN_WEIGHT || w > MAX_WEIGHT ||
-        $('#measure-waist').value === '' || !Number.isFinite(c) || c < MIN_WAIST || c > MAX_WAIST) {
-      $('#measure-error').textContent = 'Verifique os valores das medidas.'; return;
+    const hasW = $('#measure-weight').value.trim() !== '';
+    const hasC = $('#measure-waist').value.trim() !== '';
+    if ((!hasW && !hasC) || (hasW && (!Number.isFinite(w) || w < MIN_WEIGHT || w > MAX_WEIGHT)) ||
+      (hasC && (!Number.isFinite(c) || c < MIN_WAIST || c > MAX_WAIST))) {
+      $('#measure-error').textContent = 'Informe pelo menos uma medida válida.'; return;
     }
     if (records.some((r) => r.type === 'measure' && r.date === date && r.id !== old.id)) {
       $('#measure-error').textContent = 'Já existem medidas registradas nessa data.'; return;
     }
-    const item = { ...old, date, weight: Math.round(w * 10) / 10, waist: Math.round(c / WAIST_STEP) * WAIST_STEP, updatedAt: new Date().toISOString() };
+    const { weight: _oldWeight, waist: _oldWaist, ...rest } = old;
+    const item = { ...rest, date, ...(hasW ? { weight: Math.round(w * 10) / 10 } : {}),
+      ...(hasC ? { waist: c === old.waist ? c : Math.round(c / WAIST_STEP) * WAIST_STEP } : {}), updatedAt: new Date().toISOString() };
     if (persist(records.map((r) => r.id === old.id ? item : r))) {
       initialMeasurements();
       showScreen('history');
@@ -342,11 +384,12 @@
     const current = parseDay(localDay());
     const start = new Date(current);
     if (chartPeriod !== 'all') start.setDate(start.getDate() - (Number(chartPeriod) - 1));
-    return records.filter((r) => r.type === 'measure' && (chartPeriod === 'all' || parseDay(r.date) >= start))
+    return records.filter((r) => r.type === 'measure' && Number.isFinite(r[chartMetric]) &&
+      (chartPeriod === 'all' || parseDay(r.date) >= start))
       .sort((a, b) => a.date.localeCompare(b.date));
   }
   function renderHistory() {
-    const allMeasures = records.filter((r) => r.type === 'measure').sort((a, b) => b.date.localeCompare(a.date));
+    const allMeasures = records.filter((r) => r.type === 'measure' && Number.isFinite(r[chartMetric])).sort((a, b) => b.date.localeCompare(a.date));
     const latest = allMeasures[0];
     const unit = chartMetric === 'weight' ? 'kg' : 'cm';
     $('#stats-unit').textContent = unit;
@@ -362,11 +405,16 @@
       changeNode.className = `stats-change ${diff < 0 ? 'decrease' : diff > 0 ? 'increase' : 'neutral'}`;
     }
     renderChart(points, unit);
+    renderHabits();
     renderList();
   }
+  function dayNumber(day) { return Date.parse(`${day}T12:00:00Z`) / 86400000; }
   function renderChart(points, unit) {
     const root = $('#history-chart');
     const info = $('#chart-point-info');
+    const legend = $('#chart-legend');
+    legend.hidden = true;
+    legend.textContent = '';
     if (!points.length) {
       root.innerHTML = '<div class="chart-empty">Nenhuma medida neste período</div>';
       info.textContent = '';
@@ -378,26 +426,60 @@
     min -= padding;
     max += padding;
     const left = 34, right = 294, top = 22, bottom = 151;
-    const height = bottom - top;
     const range = max - min;
-    const x = (index) => points.length === 1 ? (left + right) / 2 : left + index / (points.length - 1) * (right - left);
-    const y = (value) => bottom - (value - min) / range * height;
-    const coords = points.map((p, i) => ({ x: x(i), y: y(p[chartMetric]) }));
+    const firstDay = dayNumber(points[0].date);
+    const lastDay = dayNumber(points.at(-1).date);
+    const x = (point) => firstDay === lastDay ? (left + right) / 2 :
+      left + (dayNumber(point.date) - firstDay) / (lastDay - firstDay) * (right - left);
+    const y = (value) => bottom - (value - min) / range * (bottom - top);
+    const coords = points.map((p) => ({ x: x(p), y: y(p[chartMetric]) }));
     const path = coords.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
     const area = `${path} L${coords.at(-1).x.toFixed(2)} ${bottom} L${coords[0].x.toFixed(2)} ${bottom} Z`;
     const grid = [0, 0.5, 1].map((pos) => {
       const val = max - pos * range;
-      const gy = top + pos * height;
+      const gy = top + pos * (bottom - top);
       return `<line x1="33" y1="${gy}" x2="299" y2="${gy}" stroke="#34444e" stroke-width=".8" stroke-dasharray="3 5"/><text x="2" y="${gy + 4}" fill="#8195a1" font-size="10">${fmt(val)}</text>`;
     }).join('');
     const circles = coords.map((p, i) => `<circle cx="${p.x}" cy="${p.y}" r="${selectedPoint === points[i].id ? 5.5 : 3.4}" fill="#c3dfed" stroke="#24333c" stroke-width="1.6"/><circle class="chart-point" data-point="${i}" tabindex="0" role="button" aria-label="${todayLabel(points[i].date)}: ${fmt(points[i][chartMetric])} ${unit}" cx="${p.x}" cy="${p.y}" r="13" fill="transparent"/>`).join('');
     const leftDate = todayLabel(points[0].date).replace(/\. de | de /g, ' ');
     const rightDate = todayLabel(points.at(-1).date).replace(/\. de | de /g, ' ');
+    // Média dos registros disponíveis nos sete dias anteriores, sem inventar medições ausentes.
+    const trend = chartMetric === 'weight' ? points.map((point) => {
+      const t = dayNumber(point.date);
+      const recent = points.filter((r) => dayNumber(r.date) >= t - 6 && dayNumber(r.date) <= t);
+      return recent.length >= 3 ? { x: x(point), y: y(recent.reduce((sum, r) => sum + r.weight, 0) / recent.length) } : null;
+    }) : [];
+    let trendPath = '';
+    const trendPoints = trend.filter(Boolean);
+    if (trendPoints.length >= 2) {
+      let active = false;
+      trend.forEach((p) => {
+        if (!p) { active = false; return; }
+        trendPath += `${active ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+        active = true;
+      });
+      // Só exibe segmentos com dois ou mais pontos (e não pontos isolados).
+      const segments = trendPath.trim().split(/(?=M)/).filter(segment => (segment.match(/L/g) || []).length);
+      trendPath = segments.join(' ');
+      if (trendPath) {
+        legend.hidden = false;
+        legend.innerHTML = '<span class="dash"></span>Média móvel de 7 dias (mín. 3 medições)';
+      }
+    }
+    const goalInView = chartMetric === 'weight' && goalWeight !== null && goalWeight >= min && goalWeight <= max;
+    const goalMarkup = goalInView ? `<line x1="33" y1="${y(goalWeight)}" x2="299" y2="${y(goalWeight)}" stroke="#80baa3" stroke-dasharray="5 5" stroke-width="1.4"/><text x="299" y="${Math.max(top+10, y(goalWeight)-5)}" text-anchor="end" font-size="10" fill="#9fcdb2">Meta ${fmt(goalWeight)}</text>` : '';
     root.innerHTML = `<svg viewBox="0 0 320 195" preserveAspectRatio="none" role="img" aria-label="Evolução de ${chartMetric === 'weight' ? 'peso' : 'circunferência'}">
       <defs><linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#93bed4" stop-opacity=".22"/><stop offset="1" stop-color="#93bed4" stop-opacity="0"/></linearGradient></defs>
       ${grid}${coords.length > 1 ? `<path d="${area}" fill="url(#chart-gradient)"/><path d="${path}" fill="none" stroke="#b8d7e8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+      ${goalMarkup}${trendPath ? `<path d="${trendPath}" fill="none" stroke="#dfba83" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round"/>` : ''}
       ${circles}<text x="34" y="182" fill="#8398a3" font-size="11">${leftDate}</text>${points.length > 1 ? `<text x="294" y="182" fill="#8398a3" font-size="11" text-anchor="end">${rightDate}</text>` : ''}
       </svg>`;
+    if (chartMetric === 'weight' && goalWeight !== null && !goalInView) {
+      legend.hidden = false;
+      const goal = document.createElement('span');
+      goal.textContent = `${legend.textContent ? ' · ' : ''}Meta: ${fmt(goalWeight)} kg (fora da escala)`;
+      legend.append(goal);
+    }
     const selected = points.find((p) => p.id === selectedPoint);
     info.textContent = selected ? `${todayLabel(selected.date)} · ${fmt(selected[chartMetric])} ${unit}` : 'Toque em um ponto para ver o registro';
     root.querySelectorAll('[data-point]').forEach((node) => {
@@ -405,6 +487,43 @@
       node.addEventListener('click', select);
       node.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
     });
+  }
+  function renderHabits() {
+    const grid = $('#habits-grid');
+    grid.replaceChildren();
+    const today = parseDay(localDay());
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - 13 + i);
+      return localDay(d);
+    });
+    const label = (value) => { const el = document.createElement('div'); el.className = 'habit-label'; el.textContent = value; grid.append(el); };
+    label('');
+    days.forEach((day, i) => {
+      const el = document.createElement('span'); el.className = 'habit-day';
+      el.textContent = i % 3 === 1 || i === 13 ? String(Number(day.slice(-2))) : '·';
+      el.title = todayLabel(day); grid.append(el);
+    });
+    const food = new Map(records.filter(r => r.type === 'food').map(r => [r.date, r]));
+    const train = new Set(records.filter(r => r.type === 'train').map(r => r.date));
+    label('Alimentação');
+    days.forEach(day => {
+      const item = food.get(day);
+      const cell = document.createElement('span');
+      cell.className = 'habit-cell' + (item ? ` ${item.status}` : '');
+      cell.title = `${todayLabel(day)}: ${item ? (item.status === 'good' ? 'Dentro do planejado' : 'Fora do planejado') : 'Sem registro alimentar'}`;
+      grid.append(cell);
+    });
+    label('Treino');
+    days.forEach(day => {
+      const cell = document.createElement('span'); cell.className = 'habit-cell' + (train.has(day) ? ' train' : '');
+      cell.title = `${todayLabel(day)}: ${train.has(day) ? 'Treino registrado' : 'Sem registro de treino'}`;
+      grid.append(cell);
+    });
+    const good = days.filter(day => food.get(day)?.status === 'good').length;
+    const bad = days.filter(day => food.get(day)?.status === 'bad').length;
+    const trained = days.filter(day => train.has(day)).length;
+    $('#habits-summary').textContent = `${good} dia(s) no planejado · ${bad} fora · ${trained} dia(s) com treino. Cinza = sem registro.`;
   }
   function renderList() {
     const all = sortRecords(records).filter((r) => listFilter === 'all' ||
@@ -447,8 +566,8 @@
       right.className = 'entry-right';
       if (r.type === 'measure') {
         title.textContent = 'Medidas';
-        sub.textContent = 'Peso e circunferência';
-        right.textContent = `${fmt(r.weight)} / ${fmt(r.waist)}`;
+        sub.textContent = Number.isFinite(r.weight) && Number.isFinite(r.waist) ? 'Peso e circunferência' : Number.isFinite(r.weight) ? 'Peso' : 'Circunferência';
+        right.textContent = `${Number.isFinite(r.weight) ? fmt(r.weight) : '—'} / ${Number.isFinite(r.waist) ? fmt(r.waist) : '—'}`;
       } else {
         title.textContent = r.type === 'train' ? 'Treino' : 'Alimentação';
         sub.textContent = r.note || (r.type === 'train' ? 'Treino realizado' : r.status === 'good' ? 'Dentro do planejado' : 'Fora do planejado');
@@ -495,7 +614,7 @@
     renderList();
   }
   function downloadBackup() {
-    const backup = { app: APP_NAME, schemaVersion: 1, exportedAt: new Date().toISOString(), records };
+    const backup = { app: APP_NAME, schemaVersion: 2, exportedAt: new Date().toISOString(), settings: { weightGoal: goalWeight }, records };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -505,6 +624,8 @@
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+    try { localStorage.setItem('evolucao-last-backup-v1', new Date().toISOString()); } catch (_) {}
+    refreshBackupReminder();
     toast('Backup gerado.');
   }
   async function importBackup(event) {
@@ -514,10 +635,20 @@
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error('Arquivo maior que 5 MB.');
       const raw = JSON.parse(await file.text());
-      if (!raw || raw.app !== APP_NAME || raw.schemaVersion !== 1 || !Array.isArray(raw.records)) throw new Error('O arquivo não é um backup válido deste aplicativo.');
+      if (!raw || raw.app !== APP_NAME || ![1, 2].includes(raw.schemaVersion) || !Array.isArray(raw.records)) throw new Error('O arquivo não é um backup válido deste aplicativo.');
       const incoming = validateRecords(raw.records);
       if (!confirm(`Importar ${incoming.length} registro(s)? Todos os ${records.length} registro(s) atuais serão substituídos.`)) return;
       if (persist(incoming)) {
+        if (raw.schemaVersion === 2 && raw.settings && Object.hasOwn(raw.settings, 'weightGoal')) {
+          const g = raw.settings.weightGoal;
+          const validGoal = g === null || (typeof g === 'number' && Number.isFinite(g) && g >= MIN_WEIGHT && g <= MAX_WEIGHT);
+          if (validGoal) {
+            goalWeight = g;
+            try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ weightGoal: g })); } catch (_) {}
+          }
+        }
+        $('#weight-goal').value = goalWeight == null ? '' : String(goalWeight);
+        refreshBackupReminder();
         initialMeasurements();
         selectedPoint = null;
         $('#settings-status').textContent = `Importados ${incoming.length} registros.`;
@@ -533,9 +664,36 @@
     if (persist([])) {
       initialMeasurements();
       selectedPoint = null;
+      refreshBackupReminder();
       $('#settings-status').textContent = 'Todos os registros foram apagados.';
       toast('Dados apagados.');
     }
+  }
+
+  function saveGoal() {
+    const raw = $('#weight-goal').value.trim();
+    const value = raw === '' ? null : Number(raw);
+    if (value !== null && (!Number.isFinite(value) || value < MIN_WEIGHT || value > MAX_WEIGHT)) {
+      $('#settings-status').textContent = 'Meta inválida: informe um valor entre 35 e 250 kg.';
+      return;
+    }
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ weightGoal: value }));
+      goalWeight = value;
+      $('#settings-status').textContent = value === null ? 'Meta removida.' : 'Meta salva.';
+    } catch (err) {
+      $('#settings-status').textContent = 'Não foi possível salvar a meta.';
+    }
+  }
+  function refreshBackupReminder() {
+    const el = $('#backup-reminder');
+    const last = localStorage.getItem('evolucao-last-backup-v1');
+    const hasRecords = records.length >= 5;
+    const oldest = records.reduce((min, r) => r.createdAt < min ? r.createdAt : min, new Date().toISOString());
+    const daysSinceFirst = (Date.now() - Date.parse(oldest)) / 86400000;
+    const daysSinceBackup = last && Number.isFinite(Date.parse(last)) ? (Date.now() - Date.parse(last)) / 86400000 : Infinity;
+    el.hidden = !(hasRecords && daysSinceFirst >= 7 && daysSinceBackup >= 7);
+    if (!el.hidden) el.textContent = 'Já faz algum tempo sem gerar um backup. Exporte seus dados para mantê-los seguros.';
   }
 
   // Interações e navegação.
@@ -560,6 +718,9 @@
   $('#backup-file').addEventListener('change', importBackup);
   $('#clear-data').addEventListener('click', clearData);
   $('#waist-range').step = String(WAIST_STEP);
+  $('#weight-goal').value = goalWeight == null ? '' : String(goalWeight);
+  $('#save-goal').addEventListener('click', saveGoal);
+  $('#open-settings').addEventListener('click', refreshBackupReminder);
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => {

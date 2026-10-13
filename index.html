@@ -15,9 +15,9 @@
   <link rel="shortcut icon" href="./favicon.ico?v=2" type="image/x-icon">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="./apple-touch-icon-v2.png">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=3">
   <title>Evolução</title>
-  <script src="./app.js" defer></script>
+  <script src="./app.js?v=3" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -43,7 +43,7 @@
 
           <div class="waist-region">
             <button type="button" id="waist-number" class="waist-number" aria-label="Digitar circunferência abdominal" title="Toque para digitar">98,0</button>
-            <input id="waist-range" type="range" min="50" max="160" step="0.5" value="98" aria-label="Circunferência abdominal em centímetros" style="--fill:43.636%">
+            <input id="waist-range" type="range" min="93" max="103" step="0.5" value="98" aria-label="Circunferência abdominal em centímetros" style="--fill:50%">
           </div>
 
           <div class="home-actions" role="group" aria-label="Novo registro">
@@ -94,6 +94,13 @@
           </div>
           <div id="history-chart" class="chart" role="img" aria-label="Gráfico da evolução das medidas"></div>
           <div id="chart-point-info" class="point-info" aria-live="polite"></div>
+          <div id="chart-legend" class="chart-legend" hidden></div>
+
+          <div class="habits-panel">
+            <div class="habits-title"><h2>Hábitos</h2><span>Últimos 14 dias</span></div>
+            <div class="habits-grid" id="habits-grid"></div>
+            <p class="habits-summary" id="habits-summary"></p>
+          </div>
 
           <div class="section-divider"></div>
           <div class="list-header"><h2>Registros</h2><span id="record-count" aria-live="polite"></span></div>
@@ -138,9 +145,10 @@
           <label class="field-label" for="measure-date">Data</label>
           <input type="date" id="measure-date" class="field date-field" required>
           <label class="field-label" for="measure-weight">Peso (kg)</label>
-          <input type="number" id="measure-weight" class="field measurement-field" min="35" max="250" step="0.1" inputmode="decimal" required>
+          <input type="number" id="measure-weight" class="field measurement-field" min="35" max="250" step="0.1" inputmode="decimal" placeholder="—">
           <label class="field-label" for="measure-waist">Circunferência (cm)</label>
-          <input type="number" id="measure-waist" class="field measurement-field" min="50" max="160" step="0.5" inputmode="decimal" required>
+          <input type="number" id="measure-waist" class="field measurement-field" min="50" max="160" step="any" inputmode="decimal" placeholder="—">
+          <p class="measure-help">Deixe vazio o campo de uma medida que não foi realizada.</p>
           <p class="form-error" id="measure-error" role="alert"></p>
           <button type="submit" class="confirm-button editor-confirm" aria-label="Salvar medidas"><svg viewBox="0 0 26 24"><path d="m2 12 5 5L17 7"/><path d="m10 12 5 5L24 7"/></svg></button>
         </form>
@@ -154,6 +162,15 @@
         </header>
         <div class="settings-body">
           <p class="settings-description">Seus registros ficam guardados neste aparelho e neste navegador. O GitHub hospeda apenas o aplicativo, não os seus dados.</p>
+          <div class="goal-section">
+            <label class="field-label" for="weight-goal">Meta de peso (kg) · opcional</label>
+            <div class="goal-controls">
+              <input type="number" inputmode="decimal" min="35" max="250" step="0.1" id="weight-goal" class="field" placeholder="Sem meta">
+              <button type="button" id="save-goal" class="goal-save">Salvar</button>
+            </div>
+            <p class="goal-help">Aparece apenas no histórico. Para remover, deixe vazio e salve.</p>
+          </div>
+          <p class="backup-reminder" id="backup-reminder" hidden></p>
           <button type="button" class="settings-row" id="export-backup"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></svg><span><strong>Exportar backup</strong><small>Baixar um arquivo JSON com todos os registros</small></span><span class="chevron">›</span></button>
           <button type="button" class="settings-row" id="import-backup"><svg viewBox="0 0 24 24"><path d="M12 21V9m-4 4 4-4 4 4M4 7V3h16v4"/></svg><span><strong>Importar backup</strong><small>Substituir os registros pelos de um backup</small></span><span class="chevron">›</span></button>
           <input type="file" id="backup-file" accept=".json,application/json" hidden>
