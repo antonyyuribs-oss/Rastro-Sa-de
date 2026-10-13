@@ -1,9 +1,9 @@
 /* O cache é atualizado junto com a versão do aplicativo. */
-const CACHE = 'evolucao-app-v1-20261012';
+const CACHE = 'evolucao-app-v2-icon-20261013';
 const FILES = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
-  './assets/apple-touch-icon.png'
+  './assets/apple-touch-icon.png', './apple-touch-icon.png', './apple-touch-icon-v2.png', './favicon.ico'
 ];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));

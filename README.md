@@ -29,6 +29,17 @@ Se publicar no diretório de um projeto GitHub Pages, tudo continua funcionando:
 2. Toque em **Compartilhar** e depois em **Adicionar à Tela de Início**.
 3. Abra pelo ícone **Evolução**. O aplicativo fica em tela cheia (modo standalone).
 
+### Se aparecer apenas a letra “E” como ícone
+
+A letra “E” é um ícone gerado automaticamente pelo iPhone quando ele não consegue utilizar a imagem do aplicativo. O símbolo verdadeiro é um círculo de medição com marca de confirmação, sobre fundo escuro.
+
+1. Substitua **todos os arquivos**, incluindo `assets/`, na raiz do repositório GitHub (não envie apenas `index.html`). O ícone para iPhone também foi incluído na raiz como `apple-touch-icon.png` e `apple-touch-icon-v2.png`.
+2. Espere o GitHub Pages terminar de publicar. Abra diretamente `https://SEU_USUARIO.github.io/SEU_REPOSITORIO/apple-touch-icon-v2.png` para conferir se a imagem aparece.
+3. Remova **somente o atalho do aplicativo** com a letra “E” da Tela de Início do iPhone. Isso não apaga seus dados do GitHub, mas os registros locais podem depender do modo de instalação: exporte um backup JSON antes de remover se você já registrou informações.
+4. Acesse novamente o endereço do aplicativo **pelo Safari** (não por navegador interno), atualize a página e use Compartilhar → Adicionar à Tela de Início. O iOS pode manter o ícone de um atalho já instalado mesmo depois da atualização do site.
+
+O ícone do aplicativo não é uma letra. O arquivo de imagem está incluído no projeto; a atualização altera suas referências e renova o cache offline.
+
 **Importante:** GitHub Pages requer conexão na primeira visita para baixar o aplicativo. O modo offline funciona depois que os arquivos forem armazenados pelo navegador. Backups periódicos são essenciais: apagar dados do Safari, desinstalar, mudar de navegador/aparelho ou certas políticas de armazenamento do iOS podem fazer os registros desaparecerem. Dados do navegador e do app instalado podem não ser compartilhados em algumas versões do iOS; exporte/importe para migrar.
 
 ## Arquivos
@@ -39,6 +50,9 @@ peso-app/
 ├── styles.css              Estilos responsivos e tema escuro
 ├── app.js                  Registros, gráficos, edição, JSON e navegação
 ├── manifest.webmanifest    Instalação como aplicativo
+├── apple-touch-icon.png    Ícone iPhone (caminho padrão)
+├── apple-touch-icon-v2.png Ícone iPhone (versão atualizada)
+├── favicon.ico             Ícone alternativo de navegador
 ├── sw.js                   Funcionamento offline
 ├── assets/
 │   ├── icon.svg
